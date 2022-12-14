@@ -1,0 +1,68 @@
+﻿@page "/"
+@inject HttpClient Http
+
+<PageTitle>Fish info</PageTitle>
+
+<h1>Fish info</h1>
+@if (fishes == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+            @foreach (var fish in fishes)
+            {
+                <select @onchange="getfish">
+                    @foreach (var name in fish.names)
+                    {
+                        <option>@name</option>
+                    }
+                </select>
+
+            <select @bind="pickedProperties" @bind:event="oninput">
+                    @foreach (var name in NonNullProperties(fish).Keys)
+                    {
+                        <option>@name</option>
+                    }
+                </select>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>@pickedProperties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                    <td>@((MarkupString)NonNullProperties(fish)[pickedProperties])</td>
+                    </tr>
+                    </tbody>
+                </table>
+            }
+
+}
+
+@code {
+    private string? pickedProperties = "Location";
+
+    private Fishes[]? fishes; 
+    protected override async Task OnInitializedAsync()
+    {
+        fishes = await Http.GetFromJsonAsync<Fishes[]>("https://www.fishwatch.gov/api/species/Crimson-Jobfish");
+    }
+
+    protected async Task getfish(ChangeEventArgs name)
+    {
+        string selected = name.Value.ToString();
+        fishes = await Http.GetFromJsonAsync<Fishes []>($"https://www.fishwatch.gov/api/species/{selected}");
+    }
+
+    Dictionary<string, string?> NonNullProperties(Fishes myclass)
+    {
+        return myclass.GetType().GetProperties()
+        .Where(pi => pi.PropertyType == typeof(string))
+        .Select(pi => new { Val = (string)pi.GetValue(myclass), Name = pi.Name })
+        .Where(pi => !string.IsNullOrEmpty(pi.Val))
+        .ToDictionary(pi => pi.Name, pi => pi.Val);
+    }
+
+}
